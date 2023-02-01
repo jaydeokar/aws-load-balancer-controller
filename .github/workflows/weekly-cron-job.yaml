@@ -1,0 +1,40 @@
+name: Weekly Cron tests
+
+on:
+  schedule:
+    - cron: "0 12 * * 2" # every Tuesday
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  weekly-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest commit in the PR
+        uses: actions/checkout@v3
+      - name: Set up Docker QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: "1.19"
+      - name: Set up tools
+        run: |
+          # Download ginkgo version from go.mod
+          go mod download github.com/onsi/ginkgo/v2
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.OSS_TEST_ROLE_ARN }}
+          role-duration-seconds: 7200 # 2 hours
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Run kOps tests
+        env:
+          KOPS_BINARY_VERSION: 1.25.3
+          KUBERNETES_VERSION: 1.26.0
+          PRINT_CONTROLLER_LOGS: true
+        run: |
+          ./scripts/run_kops_tests.sh
+        if: always()
