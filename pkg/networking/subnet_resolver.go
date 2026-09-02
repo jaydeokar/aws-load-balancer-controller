@@ -334,6 +334,12 @@ func (r *defaultSubnetsResolver) listSubnetsByNameOrIDs(ctx context.Context, sub
 func (r *defaultSubnetsResolver) listSubnetsByIDs(ctx context.Context, subnetIDs []string) ([]ec2types.Subnet, error) {
 	req := &ec2sdk.DescribeSubnetsInput{
 		SubnetIds: subnetIDs,
+		Filters: []ec2types.Filter{
+			{
+				Name:   awssdk.String(ec2FilterNameVpcID),
+				Values: []string{r.vpcID},
+			},
+		},
 	}
 	subnets, err := r.ec2Client.DescribeSubnetsAsList(ctx, req)
 	if err != nil {

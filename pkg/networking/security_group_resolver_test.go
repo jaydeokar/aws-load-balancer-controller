@@ -2,9 +2,10 @@ package networking
 
 import (
 	"context"
+	"testing"
+
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
-	"testing"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	ec2sdk "github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -45,6 +46,12 @@ func Test_defaultSecurityGroupResolver_ResolveViaNameOrID(t *testing.T) {
 					{
 						req: &ec2sdk.DescribeSecurityGroupsInput{
 							GroupIds: []string{"sg-xx1", "sg-xx2"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String("vpc-id"),
+									Values: []string{defaultVPCID},
+								},
+							},
 						},
 						resp: []ec2types.SecurityGroup{
 							{
@@ -187,6 +194,12 @@ func Test_defaultSecurityGroupResolver_ResolveViaNameOrID(t *testing.T) {
 					{
 						req: &ec2sdk.DescribeSecurityGroupsInput{
 							GroupIds: []string{"sg-id1"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String("vpc-id"),
+									Values: []string{defaultVPCID},
+								},
+							},
 						},
 						resp: []ec2types.SecurityGroup{
 							{
@@ -211,6 +224,12 @@ func Test_defaultSecurityGroupResolver_ResolveViaNameOrID(t *testing.T) {
 					{
 						req: &ec2sdk.DescribeSecurityGroupsInput{
 							GroupIds: []string{"sg-id"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String("vpc-id"),
+									Values: []string{defaultVPCID},
+								},
+							},
 						},
 						err: &smithy.GenericAPIError{Code: "Describe.Error", Message: "unable to describe security groups"},
 					},
@@ -255,6 +274,12 @@ func Test_defaultSecurityGroupResolver_ResolveViaNameOrID(t *testing.T) {
 					{
 						req: &ec2sdk.DescribeSecurityGroupsInput{
 							GroupIds: []string{"sg-id1", "sg-id404"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String("vpc-id"),
+									Values: []string{defaultVPCID},
+								},
+							},
 						},
 						resp: []ec2types.SecurityGroup{
 							{
@@ -314,6 +339,12 @@ func Test_defaultSecurityGroupResolver_ResolveViaNameOrID(t *testing.T) {
 					{
 						req: &ec2sdk.DescribeSecurityGroupsInput{
 							GroupIds: []string{"sg-08982de7"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String("vpc-id"),
+									Values: []string{defaultVPCID},
+								},
+							},
 						},
 						resp: []ec2types.SecurityGroup{},
 					},
@@ -335,6 +366,29 @@ func Test_defaultSecurityGroupResolver_ResolveViaNameOrID(t *testing.T) {
 				},
 			},
 			wantErr: errors.New("couldn't find all security groups: requested ids [sg-08982de7] but found [], requested names [sg group one] but found []"),
+		},
+		{
+			name: "security group id in a different VPC is rejected",
+			args: args{
+				nameOrIDs: []string{
+					"sg-foreignvpc",
+				},
+				describeSGCalls: []describeSecurityGroupsAsListCall{
+					{
+						req: &ec2sdk.DescribeSecurityGroupsInput{
+							GroupIds: []string{"sg-foreignvpc"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String("vpc-id"),
+									Values: []string{defaultVPCID},
+								},
+							},
+						},
+						resp: []ec2types.SecurityGroup{},
+					},
+				},
+			},
+			wantErr: errors.New("couldn't find all security groups: requested ids [sg-foreignvpc] but found []"),
 		},
 	}
 

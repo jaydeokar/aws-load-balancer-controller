@@ -1009,6 +1009,19 @@ var (
 		},
 		VpcId: awssdk.String("vpc-1"),
 	}
+
+	subnet16 = ec2types.Subnet{
+		SubnetId:                awssdk.String("subnet-16"),
+		AvailabilityZone:        awssdk.String("az16"),
+		AvailableIpAddressCount: awssdk.Int32(8),
+		Tags: []ec2types.Tag{
+			{
+				Key:   awssdk.String("alb"),
+				Value: awssdk.String("testing"),
+			},
+		},
+		VpcId: awssdk.String("vpc-2"),
+	}
 )
 
 func stubDescribeSubnetsAsList(ctx context.Context, input *ec2.DescribeSubnetsInput) ([]ec2types.Subnet, error) {
@@ -1028,6 +1041,7 @@ func stubDescribeSubnetsAsList(ctx context.Context, input *ec2.DescribeSubnetsIn
 		subnet13,
 		subnet14,
 		subnet15,
+		subnet16,
 	}
 	if input.SubnetIds != nil {
 		var filtered []ec2types.Subnet
@@ -1324,6 +1338,28 @@ func Test_defaultModelBuildTask_buildLoadBalancerSubnets(t *testing.T) {
 				},
 			},
 			wantErr: "failed to list subnets by IDs: couldn't find all subnets, want: [subnet-1234 subnet-1], found: [subnet-1]",
+		},
+		{
+			name: "subnet ID in a different VPC supplied via annotation is rejected",
+			fields: fields{
+				ingGroup: Group{
+					ID: GroupID{Namespace: "awesome-ns", Name: "ing-1"},
+					Members: []ClassifiedIngress{
+						{
+							Ing: &networking.Ingress{
+								ObjectMeta: metav1.ObjectMeta{
+									Namespace: "awesome-ns",
+									Name:      "ing-1",
+									Annotations: map[string]string{
+										"alb.ingress.kubernetes.io/subnets": "subnet-16",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: "failed to list subnets by names or IDs: couldn't find all subnets, want: [subnet-16], found: []",
 		},
 		{
 			name: "classparams ignore tagged other cluster",

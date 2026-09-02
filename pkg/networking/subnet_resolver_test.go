@@ -1478,6 +1478,12 @@ func Test_defaultSubnetsResolver_ResolveViaSelector(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-1", "subnet-2"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -1554,6 +1560,12 @@ func Test_defaultSubnetsResolver_ResolveViaSelector(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-1", "subnet-2"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -1595,6 +1607,12 @@ func Test_defaultSubnetsResolver_ResolveViaSelector(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-1", "subnet-2"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						err: errors.New("some error"),
 					},
@@ -2245,6 +2263,12 @@ func Test_defaultSubnetsResolver_ResolveViaNameOrIDSlice(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-1", "subnet-2"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -2426,6 +2450,12 @@ func Test_defaultSubnetsResolver_ResolveViaNameOrIDSlice(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-1"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -2528,6 +2558,12 @@ func Test_defaultSubnetsResolver_ResolveViaNameOrIDSlice(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-3", "subnet-1", "subnet-2"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						// AWS returns in different order than requested
 						output: []ec2types.Subnet{
@@ -2980,6 +3016,12 @@ func Test_defaultSubnetsResolver_ResolveViaNameOrIDSlice(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-1", "subnet-2"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -3008,6 +3050,39 @@ func Test_defaultSubnetsResolver_ResolveViaNameOrIDSlice(t *testing.T) {
 				},
 			},
 			wantErr: errors.New("multiple subnets in same Availability Zone us-west-2a: [subnet-1 subnet-2]"),
+		},
+		{
+			name: "subnet id in a different VPC is rejected",
+			fields: fields{
+				clusterTagCheckEnabled:         true,
+				albSingleSubnetEnabled:         false,
+				discoveryByReachabilityEnabled: true,
+				describeSubnetsAsListCalls: []describeSubnetsAsListCall{
+					{
+						// The vpc-id filter scopes the lookup to the cluster VPC, so a
+						// subnet that exists in another VPC of the account is not returned
+						// and the count check rejects the request.
+						input: &ec2sdk.DescribeSubnetsInput{
+							SubnetIds: []string{"subnet-foreignvpc"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
+						},
+						output: []ec2types.Subnet{},
+					},
+				},
+			},
+			args: args{
+				nameOrIDs: []string{"subnet-foreignvpc"},
+				opts: []SubnetsResolveOption{
+					WithSubnetsResolveLBType(elbv2model.LoadBalancerTypeApplication),
+					WithSubnetsResolveLBScheme(elbv2model.LoadBalancerSchemeInternetFacing),
+				},
+			},
+			wantErr: errors.New("failed to list subnets by names or IDs: couldn't find all subnets, want: [subnet-foreignvpc], found: []"),
 		},
 	}
 	for _, tt := range tests {
@@ -3571,6 +3646,12 @@ func Test_IsSubnetInLocalZoneOrOutpost(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-1234567890"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -3616,6 +3697,12 @@ func Test_IsSubnetInLocalZoneOrOutpost(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-outpost123"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -3650,6 +3737,12 @@ func Test_IsSubnetInLocalZoneOrOutpost(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-regular123"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -3695,6 +3788,12 @@ func Test_IsSubnetInLocalZoneOrOutpost(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-wavelength123"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{
@@ -3740,6 +3839,12 @@ func Test_IsSubnetInLocalZoneOrOutpost(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-notfound"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						err: errors.New("InvalidSubnetID.NotFound: Subnet ID 'subnet-notfound' does not exist"),
 					},
@@ -3759,6 +3864,12 @@ func Test_IsSubnetInLocalZoneOrOutpost(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-error"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						err: errors.New("API error"),
 					},
@@ -3778,6 +3889,12 @@ func Test_IsSubnetInLocalZoneOrOutpost(t *testing.T) {
 					{
 						input: &ec2sdk.DescribeSubnetsInput{
 							SubnetIds: []string{"subnet-azinfo-error"},
+							Filters: []ec2types.Filter{
+								{
+									Name:   awssdk.String(ec2FilterNameVpcID),
+									Values: []string{"vpc-dummy"},
+								},
+							},
 						},
 						output: []ec2types.Subnet{
 							{

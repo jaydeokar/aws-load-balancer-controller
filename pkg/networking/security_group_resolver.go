@@ -2,9 +2,10 @@ package networking
 
 import (
 	"context"
+	"strings"
+
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"sigs.k8s.io/aws-load-balancer-controller/v3/pkg/algorithm"
-	"strings"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	ec2sdk "github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -73,6 +74,12 @@ func (r *defaultSecurityGroupResolver) ResolveViaNameOrID(ctx context.Context, s
 func (r *defaultSecurityGroupResolver) resolveViaGroupID(ctx context.Context, sgIDs []string) ([]ec2types.SecurityGroup, error) {
 	req := &ec2sdk.DescribeSecurityGroupsInput{
 		GroupIds: sgIDs,
+		Filters: []ec2types.Filter{
+			{
+				Name:   awssdk.String("vpc-id"),
+				Values: []string{r.vpcID},
+			},
+		},
 	}
 
 	sgs, err := r.ec2Client.DescribeSecurityGroupsAsList(ctx, req)
